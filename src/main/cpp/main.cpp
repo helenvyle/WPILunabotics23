@@ -40,6 +40,7 @@ class Helen_Test : public frc::TimedRobot {
   rev::CANSparkMax m_rightFollowMotor{rightFollowDeviceID, rev::CANSparkMax::MotorType::kBrushless};
 
   TalonSRX linear_slider = {1};
+  TalonSRX excavator = {5};
   
   rev::SparkMaxRelativeEncoder leftLead_encoder = m_leftLeadMotor.GetEncoder();
 
@@ -52,6 +53,9 @@ class Helen_Test : public frc::TimedRobot {
   float rightSpeed = 0.6;
 
   float leftSpeed = 0.6;
+
+  float x_curr;
+  float y_curr;
 
   bool hardStop = false;
 
@@ -96,25 +100,45 @@ class Helen_Test : public frc::TimedRobot {
         // m_robotDrive.TankDrive(0.5, 0.0);
         // m_leftLeadMotor.Set(0.5);
         // turn(90);
-        // drive(-50);
+        // drive(50);
         // turn(45);
-        // linear_slider.Set(ControlMode::PercentOutput, 10);
-        localization();
+        excavator.Set(ControlMode::PercentOutput, -2);
+        // linear_slider.Set(ControlMode::PercentOutput, 100);
+        // localization();
+       // arc_turn_left(50, 10, 90);
     //    print_encoders();
     }
 
     void localization() {
-        double dist_goal = 2;
-        double x_val = frc::SmartDashboard::GetNumber("X", 0);
-        double y_val = frc::SmartDashboard::GetNumber("Y", 0);
+        double dist_goal = 0.5;
+        x_curr = frc::SmartDashboard::GetNumber("X", 0);
+        y_curr = frc::SmartDashboard::GetNumber("Y", 0);
 
-        while((x_val >= dist_goal + 0.2 || x_val >= dist_goal - 0.2) && (y_val >= dist_goal + 0.2 || y_val >= dist_goal - 0.2)) {
-            m_robotDrive.TankDrive(0.5, -0.5);
+        // while((x_val >= dist_goal + 0.2 || x_val >= dist_goal - 0.2) && (y_val >= dist_goal + 0.2 || y_val >= dist_goal - 0.2)) {
+        //     m_robotDrive.TankDrive(0.5, -0.5);
+        // }
+        // m_robotDrive.TankDrive(0,0);
+
+        //implement turns until 45 degrees, if not then drive forward and repeat 
+        float left_encoder_start = leftLead_encoder.GetPosition();
+        //below is the number of encoder counts for a 45 degree turn
+        float encoder_cycle = 165;
+        while(x_curr == 0 && y_curr == 0) {
+            if(leftLead_encoder.GetPosition() - left_encoder_start <= encoder_cycle) {
+                m_robotDrive.TankDrive(0.5, -0.5);
+                x_curr = frc::SmartDashboard::GetNumber("X", 0);
+                y_curr = frc::SmartDashboard::GetNumber("Y", 0);
+            } else {
+                m_robotDrive.TankDrive(0,0);
+                drive(10);
+                left_encoder_start = leftLead_encoder.GetPosition();
+            }
+
         }
+
         m_robotDrive.TankDrive(0,0);
-
-        std::cout << "X " << x_val << std::endl;
-
+        // std::cout << "X: " << x_val << std::endl;
+        // std::cout << "Y: " << y_val << std::endl;
     }
 
     void clearEncoders(){
@@ -124,6 +148,35 @@ class Helen_Test : public frc::TimedRobot {
         rightFollower_encoder.SetPosition(0);
     }
 
+    //things to work on/fix:
+    //figure out how to get robot current heading and how to extract that value
+    //positive/negative linear and angular diff -- check to make sure they behave correctly logically
+    //fix turn and drive functions so they can actually go sequentially without getting stuck somewhere
+
+    // void drive_to(float x_goal, float y_goal) {
+    //     float tolerance = 0.04;
+
+    //     float linear_diff = abs(math.sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+    //     while (linear_diff > tolerance) {
+            
+    //         linear_diff = abs(math.sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+    //         float target_angle =  math.atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*math.pi;
+    //         //this can be implemented or pulled somehow from localization once I figure out how it works
+    //         float current_angle;
+        
+    //         float angular_diff = target_angle - current_angle;
+    //         send_speed(linear_diff, angular_diff);
+    //     }
+
+    // }
+
+    void send_speed(float linear_diff, float angular_diff) {
+
+        turn(angular_diff);
+        drive(linear_diff);
+
+    }
+    
     void turn(float angle) {
         float encoder_goal = abs(((angle/360)*(3.14*wheel_diam) * enc_res))/2;
         float speed = 0.4;
@@ -139,8 +192,8 @@ class Helen_Test : public frc::TimedRobot {
                 float speedR = -speed - (errorRight * k);
                 m_robotDrive.TankDrive(speedL, speedR);
             }
-        } else if (angle < 0) {
-            while(leftLead_encoder.GetPosition()>= encoder_goal || rightLead_encoder.GetPosition()<= abs(encoder_goal)) {
+        } else if (angle <= 0) {
+            while((leftLead_encoder.GetPosition()>= encoder_goal - 5 && leftLead_encoder.GetPosition() >= encoder_goal + 5) || (rightLead_encoder.GetPosition()<= abs(encoder_goal-5)  && rightLead_encoder.GetPosition() <= abs(encoder_goal + 5))) {
                 int errorLeft = abs(encoder_goal) - abs(leftLead_encoder.GetPosition());
                 int errorRight = abs(encoder_goal) - abs(rightLead_encoder.GetPosition());
                 int k = 0.2;
@@ -221,6 +274,8 @@ class Helen_Test : public frc::TimedRobot {
         m_robotDrive.TankDrive(0.0,0.0);
         sleep(1);
     }
+
+
 
     bool drive (float distance) {
         
