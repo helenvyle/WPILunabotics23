@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 
 #include <frc/Joystick.h>
 
@@ -23,9 +24,12 @@
 
 #include "ctre/Phoenix.h"
 
+#include <cmath>
+
+
 using namespace std;
 
-class Helen_Test : public frc::TimedRobot {
+class Robot : public frc::TimedRobot {
 
   NT_Subscriber ySub;
 
@@ -54,12 +58,15 @@ class Helen_Test : public frc::TimedRobot {
 
   float leftSpeed = 0.6;
 
-  float x_curr;
-  float y_curr;
+  double x_curr;
+  double y_curr;
 
   bool hardStop = false;
 
   vector<int> speeds;
+  
+  double default_array[3];
+
   
   
 
@@ -72,8 +79,6 @@ class Helen_Test : public frc::TimedRobot {
     int wheel_diam = 10; // in
     float right_speed = 0.0;
     float left_speed = 0.0;
-
-    // Helen_Test() {}
 
     void RobotInit() override{
         m_rightFollowMotor.Follow(m_rightLeadMotor, false);
@@ -102,32 +107,39 @@ class Helen_Test : public frc::TimedRobot {
         // turn(90);
         // drive(50);
         // turn(45);
-        excavator.Set(ControlMode::PercentOutput, -2);
+        //negative - up
+        // print_encoders();
+        // excavator.Set(ControlMode::PercentOutput, -2);
         // linear_slider.Set(ControlMode::PercentOutput, 100);
-        // localization();
+        localization();
        // arc_turn_left(50, 10, 90);
     //    print_encoders();
     }
 
+
+    //turns until 45 degrees, if cant find april tag then drive forward and repeat
+    //once finds april tag, it stops (unless we want it to drive forward a bit/be perpendicular?)
+
     void localization() {
         double dist_goal = 0.5;
-        x_curr = frc::SmartDashboard::GetNumber("X", 0);
-        y_curr = frc::SmartDashboard::GetNumber("Y", 0);
 
-        // while((x_val >= dist_goal + 0.2 || x_val >= dist_goal - 0.2) && (y_val >= dist_goal + 0.2 || y_val >= dist_goal - 0.2)) {
-        //     m_robotDrive.TankDrive(0.5, -0.5);
-        // }
-        // m_robotDrive.TankDrive(0,0);
 
-        //implement turns until 45 degrees, if not then drive forward and repeat 
+        std::vector<double> coord = {-1,-1, -1};
+
+        coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
+        x_curr = coord[0];
+        y_curr = coord[1];
+
         float left_encoder_start = leftLead_encoder.GetPosition();
-        //below is the number of encoder counts for a 45 degree turn
+        // //below is the number of encoder counts for a 45 degree turn
         float encoder_cycle = 165;
-        while(x_curr == 0 && y_curr == 0) {
+        while(x_curr == -1 && y_curr == -1) {
             if(leftLead_encoder.GetPosition() - left_encoder_start <= encoder_cycle) {
-                m_robotDrive.TankDrive(0.5, -0.5);
-                x_curr = frc::SmartDashboard::GetNumber("X", 0);
-                y_curr = frc::SmartDashboard::GetNumber("Y", 0);
+                m_robotDrive.TankDrive(0.4, -0.4);
+                coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
+                x_curr = coord[0];
+                y_curr = coord[1];
+
             } else {
                 m_robotDrive.TankDrive(0,0);
                 drive(10);
@@ -137,8 +149,7 @@ class Helen_Test : public frc::TimedRobot {
         }
 
         m_robotDrive.TankDrive(0,0);
-        // std::cout << "X: " << x_val << std::endl;
-        // std::cout << "Y: " << y_val << std::endl;
+
     }
 
     void clearEncoders(){
@@ -153,22 +164,25 @@ class Helen_Test : public frc::TimedRobot {
     //positive/negative linear and angular diff -- check to make sure they behave correctly logically
     //fix turn and drive functions so they can actually go sequentially without getting stuck somewhere
 
-    // void drive_to(float x_goal, float y_goal) {
-    //     float tolerance = 0.04;
+    void drive_to(float x_goal, float y_goal) {
+        float tolerance = 0.04;
 
-    //     float linear_diff = abs(math.sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
-    //     while (linear_diff > tolerance) {
+        float linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+        while (linear_diff > tolerance) {
             
-    //         linear_diff = abs(math.sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
-    //         float target_angle =  math.atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*math.pi;
-    //         //this can be implemented or pulled somehow from localization once I figure out how it works
-    //         float current_angle;
-        
-    //         float angular_diff = target_angle - current_angle;
-    //         send_speed(linear_diff, angular_diff);
-    //     }
+            linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+            float target_angle =  atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*M_PI;
+            //this can be implemented or pulled somehow from localization once I figure out how it works
+            std::vector<double> heading = {-1,-1, -1};
+            heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
 
-    // }
+            float current_angle = heading[0];
+        
+            float angular_diff = target_angle - current_angle;
+            send_speed(linear_diff, angular_diff);
+        }
+
+    }
 
     void send_speed(float linear_diff, float angular_diff) {
 
@@ -328,16 +342,19 @@ class Helen_Test : public frc::TimedRobot {
     }
 
     void print_encoders() {
-        frc::SmartDashboard::PutNumber("Left Lead Encoder Position", leftLead_encoder.GetPosition());
-        frc::SmartDashboard::PutNumber("Right Lead Position", rightLead_encoder.GetPosition());
-        frc::SmartDashboard::PutNumber("Left Follower Position", leftFollower_encoder.GetPosition());
-        frc::SmartDashboard::PutNumber("Right Follower Position", rightLead_encoder.GetPosition());
+        // frc::SmartDashboard::PutNumber("Left Lead Encoder Position", leftLead_encoder.GetPosition());
+        // frc::SmartDashboard::PutNumber("Right Lead Position", rightLead_encoder.GetPosition());
+        // frc::SmartDashboard::PutNumber("Left Follower Position", leftFollower_encoder.GetPosition());
+        // frc::SmartDashboard::PutNumber("Right Follower Position", rightLead_encoder.GetPosition());
+
+        double default_array [3];
+        // std::vector<int> v = {0, 0, 0};
+        // default_array(v);          // OK
+
+
     }
 };
 
-#ifndef RUNNING_FRC_TESTS
-int main() { return frc::StartRobot<Helen_Test>(); }
+#ifndef RUNNING_FRC_TESTS   
+int main() { return frc::StartRobot<Robot>(); }
 #endif
-
-
-
