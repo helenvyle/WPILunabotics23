@@ -76,8 +76,8 @@ class Robot : public frc::TimedRobot {
 
   float leftSpeed = 0.6;
 
-  double x_curr;
-  double y_curr;
+  double x_curr = 0;
+  double y_curr = 0;
 
   bool hardStop = false;
 
@@ -143,7 +143,9 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
  // bucket_function();
        
       //  drive(235);
-        drive(20);
+        // drive(-75);
+        drive_to(25,20);
+
 
     //    excavator.Set(ControlMode::PercentOutput,-20);
     //    linear_slider.Set(ControlMode::PercentOutput, -20);
@@ -307,8 +309,8 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
             //this can be implemented or pulled somehow from localization once I figure out how it works
             heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
 
-            float current_angle = heading[0];
-        
+            // float current_angle = heading[0];
+            float current_angle = 0;
             float angular_diff = target_angle - current_angle;
             send_speed(linear_diff, angular_diff);
         }
@@ -318,6 +320,7 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
     void send_speed(float linear_diff, float angular_diff) {
 
         turn(angular_diff);
+        sleep(1);
         drive(linear_diff);
 
     }
