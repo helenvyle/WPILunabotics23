@@ -4,6 +4,7 @@
 
 #include <frc/TimedRobot.h>
 #include <frc/Encoder.h>
+#include<frc/Servo.h>
 
 #include <cameraserver/CameraServer.h>
 #include <opencv2/core/core.hpp>
@@ -29,17 +30,18 @@
 #include <cmath>
 
 
+
 using namespace std;
 
 class Robot : public frc::TimedRobot {
 
   //NT_Subscriber ySub;
 
-  double d  = 0.0;
+  double bucket_encoder_readings  = 0.0;
 
   static const int leftLeadDeviceID = 4, leftFollowDeviceID = 3, rightLeadDeviceID = 2, rightFollowDeviceID = 1;
 
-  frc::Encoder encoder{0,1};
+  frc::Encoder bucket_encoder{0,1};
 
   frc::AnalogInput hall_effect{0};
 
@@ -56,13 +58,32 @@ class Robot : public frc::TimedRobot {
   TalonSRX linear_slider = {5};
   TalonSRX excavator = {1}; // double check
   TalonSRX bucket = {3};
-  bool bucket_dumping_done = 0;
+ 
+  frc::Servo exampleServo {0};
 
+ // bucket variables
+ 
   float initial_bucket_encoder_reading = 0.0;
   bool bucket_done = 0;
+  bool bucket_dumping_done = 0;
 
-    bool done = 0;
+bool done = 0;
   
+// variables for Autonomous Operations
+// switch case with all the cases and variables as well
+
+enum states 
+{
+ IDLE,
+ DRIVE,
+ TURN,
+ BUCKET_DUMPING,
+ LINEAR_SLIDER,
+ EXCAVATOR,
+ STOP
+};
+
+states state = IDLE;
   
   rev::SparkMaxRelativeEncoder leftLead_encoder = m_leftLeadMotor.GetEncoder();
 
@@ -104,11 +125,8 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
 
     void RobotInit() override{
 
-        encoder.SetDistancePerPulse(0.05);
-        // encoder.SetMinRate(10);
-       // encoder.SetReverseDirection(true);
-        // encoder.SetSamplesToAverage(5);
-
+        bucket_encoder.SetDistancePerPulse(0.05); // encoder resolution 360/(188*4.65)
+       
         m_rightFollowMotor.Follow(m_rightLeadMotor, false);
         m_leftFollowMotor.Follow(m_leftLeadMotor, false);
         m_rightLeadMotor.SetInverted(true);
@@ -130,6 +148,12 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
 
    
     void AutonomousPeriodic() override {
+
+
+     exampleServo.Set(75);
+    // use SmartDashboard to send numbers signifying the state and use the switch cas accordingly.
+
+
         // drive(-20);
         // m_robotDrive.TankDrive(0.5, 0.0);
         // m_leftLeadMotor.Set(0.5);
@@ -140,11 +164,11 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
        //   bucket.SetInverted(true);  
         //      bucket.Set(ControlMode::PercentOutput,0.5);
  
- // bucket_function();
+ // bucket_function(115);
        
       //  drive(235);
         // drive(-75);
-        drive_to(25,20);
+      //  drive_to(25,20);
 
 
     //    excavator.Set(ControlMode::PercentOutput,-20);
@@ -212,50 +236,47 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
     }
     
 
-    void bucket_function()
+       void bucket_encoder_values()
+   {
+        bucket_encoder_readings = bucket_encoder.GetDistance();
+        bucket_encoder.GetRate();
+   }
+
+    void bucket_function(float targetDegrees)
     {
         // get encoder values from the bucket
         
-         initial_bucket_encoder_reading = encoder.GetDistance();
-
-         while(abs(d - 110) > 0 && !bucket_done)
+         while(abs(bucket_encoder_readings - targetDegrees) > 0 && !bucket_done)
          {
             bucket.Set(ControlMode::PercentOutput,1);
-            encoder_values();
+            bucket_encoder_values();
             print_encoders();
-        //    // printf( "%d\n",excavator.GetSelectedSensorPosition(0));
          };
      
            bucket.Set(ControlMode::PercentOutput,0);
            bucket_dumping_done = 1;
            sleep(1);
     
-             if(bucket_dumping_done)
+        if(bucket_dumping_done)
              {
-                
-            while (abs( d- 5) > 0 )
+            while (abs(bucket_encoder_readings - 5) > 0 )
             {
              bucket.SetInverted(true);  
              bucket.Set(ControlMode::PercentOutput,1);
-             encoder_values();
+             bucket_encoder_values();
              print_encoders();
             }
             bucket.Set(ControlMode::PercentOutput,0);
             bucket_dumping_done=0;
             bucket_done=1;
-             }
+          }
 
     }
-
-// reading bucket values
-   void encoder_values()
-   {
-        d = encoder.GetDistance();
-        encoder.GetRate();
-   }
-
     //turns until 45 degrees, if cant find april tag then drive forward and repeat
     //once finds april tag, it stops (unless we want it to drive forward a bit/be perpendicular?)
+   void servoTest(){
+
+   }
 
     void localization() {
         double dist_goal = 0.5;
@@ -423,8 +444,6 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
         sleep(1);
     }
 
-
-
     bool drive (float distance) {
         sleep(3);
         double encoder_goal = (distance)/(3.14*wheel_diam) * enc_res * 3.95 + leftLead_encoder.GetPosition();
@@ -487,10 +506,7 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
        // double default_array [3];
       //   std::vector<int> v = {0, 0, 0};
        //  default_array(v);          // OK
-       frc::SmartDashboard::PutNumber("Encoding Scale",encoder.GetEncodingScale());
-       frc::SmartDashboard::PutNumber("DumpingBoolean",bucket_dumping_done);
-       frc::SmartDashboard::PutNumber("InitialEncoderValues",initial_bucket_encoder_reading);
-       frc::SmartDashboard::PutNumber("Encoder",d);
+       frc::SmartDashboard::PutNumber("Encoder",bucket_encoder_readings);
 
     }
 };
