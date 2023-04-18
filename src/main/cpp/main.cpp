@@ -35,93 +35,97 @@ using namespace std;
 
 class Robot : public frc::TimedRobot {
 
-  //NT_Subscriber ySub;
+    //NT_Subscriber ySub;
 
-  double bucket_encoder_readings  = 0.0;
+    double bucket_encoder_readings  = 0.0;
 
-  static const int leftLeadDeviceID = 4, leftFollowDeviceID = 3, rightLeadDeviceID = 2, rightFollowDeviceID = 1;
+    static const int leftLeadDeviceID = 4, leftFollowDeviceID = 3, rightLeadDeviceID = 2, rightFollowDeviceID = 1;
 
-  frc::Encoder bucket_encoder{0,1};
+    frc::Encoder bucket_encoder{0,1};
 
-  frc::AnalogInput hall_effect{0};
+    frc::AnalogInput hall_effect{0};
 
-  rev::CANSparkMax m_leftLeadMotor{leftLeadDeviceID, rev::CANSparkMax::MotorType::kBrushless};
+    frc::AnalogInput pressure_sensor{1};
 
-  rev::CANSparkMax m_rightLeadMotor{rightLeadDeviceID, rev::CANSparkMax::MotorType::kBrushless};
+    rev::CANSparkMax m_leftLeadMotor{leftLeadDeviceID, rev::CANSparkMax::MotorType::kBrushless};
 
-  rev::CANSparkMax m_leftFollowMotor{leftFollowDeviceID, rev::CANSparkMax::MotorType::kBrushless};
+    rev::CANSparkMax m_rightLeadMotor{rightLeadDeviceID, rev::CANSparkMax::MotorType::kBrushless};
 
-  rev::CANSparkMax m_rightFollowMotor{rightFollowDeviceID, rev::CANSparkMax::MotorType::kBrushless};
+    rev::CANSparkMax m_leftFollowMotor{leftFollowDeviceID, rev::CANSparkMax::MotorType::kBrushless};
 
-  rev::CANSparkMax m_belt{5, rev::CANSparkMax::MotorType::kBrushless};
+    rev::CANSparkMax m_rightFollowMotor{rightFollowDeviceID, rev::CANSparkMax::MotorType::kBrushless};
 
-  TalonSRX linear_slider = {5};
-  TalonSRX excavator = {1}; // double check
-  TalonSRX bucket = {3};
- 
-  frc::Servo exampleServo {0};
+    rev::CANSparkMax m_belt{5, rev::CANSparkMax::MotorType::kBrushless};
 
- // bucket variables
- 
-  float initial_bucket_encoder_reading = 0.0;
-  bool bucket_done = 0;
-  bool bucket_dumping_done = 0;
+    TalonSRX linear_slider = {5};
+    TalonSRX excavator = {1}; // double check
+    TalonSRX bucket = {3};
+    
+    frc::Servo exampleServo {0};
 
-bool done = 0;
+    // bucket variables
+    
+    float initial_bucket_encoder_reading = 0.0;
+    bool bucket_done = 0;
+    bool bucket_dumping_done = 0;
+
+    bool done = 0;
   
 // variables for Autonomous Operations
 // switch case with all the cases and variables as well
 
-enum states 
-{
- IDLE,
- DRIVE,
- TURN,
- BUCKET_DUMPING,
- LINEAR_SLIDER,
- EXCAVATOR,
- STOP
-};
+    enum states 
+    {
+    IDLE,
+    DRIVE,
+    DIG,
+    DUMP,
+    STOP
+    };
 
-states state = IDLE;
-  
-  rev::SparkMaxRelativeEncoder leftLead_encoder = m_leftLeadMotor.GetEncoder();
+    states state = IDLE;
+    int received_data = -1;
+    int driving_done = -1;
+    
+    rev::SparkMaxRelativeEncoder leftLead_encoder = m_leftLeadMotor.GetEncoder();
 
-  rev::SparkMaxRelativeEncoder rightLead_encoder = m_rightLeadMotor.GetEncoder();
+    rev::SparkMaxRelativeEncoder rightLead_encoder = m_rightLeadMotor.GetEncoder();
 
-  rev::SparkMaxRelativeEncoder leftFollower_encoder = m_leftFollowMotor.GetEncoder();
+    rev::SparkMaxRelativeEncoder leftFollower_encoder = m_leftFollowMotor.GetEncoder();
 
-  rev::SparkMaxRelativeEncoder rightFollower_encoder = m_rightFollowMotor.GetEncoder();
+    rev::SparkMaxRelativeEncoder rightFollower_encoder = m_rightFollowMotor.GetEncoder();
 
-  float rightSpeed = 0.6;
+    float rightSpeed = 0.6;
 
-  float leftSpeed = 0.6;
+    float leftSpeed = 0.6;
 
-  double x_curr = 0;
-  double y_curr = 0;
+    double x_curr = 0;
+    double y_curr = 0;
 
-  bool hardStop = false;
+    bool hardStop = false;
 
-  vector<int> speeds;
-  
-  double default_array[3];
-  std::vector<double> heading = {-1,-1, -1};
-  std::vector<double> coord = {-1,-1, -1};
-  int counter = 0;
+    vector<int> speeds;
+    
+    double default_array[3];
+    std::vector<double> heading = {-1,-1, -1};
+    std::vector<double> current_coord = {-1,-1, -1};
+    std::vector<double> target_coord = {-1, -1, -1};
+    int counter = 0;
 
-// directly horizontal /start position : 1079590912 
-// 
+    // directly horizontal /start position : 1079590912 
+    // 
 
 
-frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
-// frc::DifferentialDrive::TankDrive m_robotDrive;
- private:
+    frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
+    // frc::DifferentialDrive::TankDrive m_robotDrive;
+    private:
 
-    int enc_res = 42;
-    int wheelbase = 20; // in
-    int wheel_diam = 10; // in
-    float right_speed = 0.0;
-    float left_speed = 0.0;
+        int enc_res = 42;
+        int wheelbase = 20; // in
+        int wheel_diam = 10; // in
+        float right_speed = 0.0;
+        float left_speed = 0.0;
+        bool flag = false;
 
     void RobotInit() override{
 
@@ -135,7 +139,7 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
         units::second_t experation(1.5);
         m_robotDrive.SetExpiration(experation);
         linear_slider.SetInverted(true);
-        
+        counter = 0;
 
     }
 //     //pi per second at top speed
@@ -149,8 +153,35 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
    
     void AutonomousPeriodic() override {
 
+        switch(state) {
+            case IDLE:
+                while(received_data == -1) {
+                    current_coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
+                    if(current_coord[0] != -1) {
+                        received_data = 1;
+                        state = DRIVE;
+                        break;
+                    }
 
-     exampleServo.Set(75);
+                }
+            case DRIVE: 
+                while(driving_done == -1) {
+                    driving_done = frc::SmartDashboard::GetNumber("Driving Done", -1);
+                    target_coord = frc::SmartDashboard::GetNumberArray("Target Location m", default_array);
+                    drive_to(target_coord[0], target_coord[1]);
+                    if(driving_done == 1) {
+                        state = DIG;
+                        break;
+                    }
+                }
+
+            case DIG:
+                
+            case DUMP:
+
+        }
+
+    //  exampleServo.Set(75);
     // use SmartDashboard to send numbers signifying the state and use the switch cas accordingly.
 
 
@@ -166,10 +197,10 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
  
  // bucket_function(115);
        
-      //  drive(235);
+    //    drive(235);
         // drive(-75);
-      //  drive_to(25,20);
-
+    //    drive_to(25,20);
+        turn(45);
 
     //    excavator.Set(ControlMode::PercentOutput,-20);
     //    linear_slider.Set(ControlMode::PercentOutput, -20);
@@ -215,7 +246,41 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
         // linear_slider.Set(ControlMode::PercentOutput, 0.0);
         // m_belt.Set(-0.3);
        //bucket_function();
-     
+
+    //    std::cout << pressure_sensor.GetValue() << std::endl;
+
+    //    if (counter == 0){
+    //     counter++;
+    //     linear_slider_down(1);
+    //    }
+    }
+
+    void linear_slider_down(int numPositions){
+        bool flag1 = true;
+        bool flag2 = false;
+        int counter = 1;
+        while(flag1){
+            if (hall_effect.GetValue() < 8)
+            {
+                // std::cout << hall_effect.GetValue() << std::endl;
+                linear_slider.Set(ControlMode::PercentOutput, 0.2);
+                if(flag2){
+                    flag1 = false;
+                }
+            }
+            if(hall_effect.GetValue() > 8){
+                // std::cout << hall_effect.GetValue() << std::endl;
+                linear_slider.Set(ControlMode::PercentOutput, 0.2);
+                if(counter < numPositions){
+                    flag2 = false;
+                    counter++;
+                }
+                else{
+                    flag2 = true;
+                }
+            }
+        }
+        linear_slider.Set(ControlMode::PercentOutput, 0.0);
     }
 
     void reconfigure_up(){
@@ -326,14 +391,22 @@ frc::DifferentialDrive m_robotDrive{m_leftLeadMotor, m_rightLeadMotor};
         while (linear_diff > tolerance) {
             
             linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
-            float target_angle =  atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*M_PI;
+            //this is to test to see if it'd be a bit more accurate? 
+            float target_angle =  atan2((x_goal - x_curr), (y_goal - y_curr));
+            float angle_in_deg = target_angle*(180/(M_PI));
+            //original working:
+            // float target_angle =  atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*M_PI;
             //this can be implemented or pulled somehow from localization once I figure out how it works
-            heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
+            // heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
 
             // float current_angle = heading[0];
+
+            std::cout << "Target angle: " << angle_in_deg << std::endl;
+
+
             float current_angle = 0;
-            float angular_diff = target_angle - current_angle;
-            send_speed(linear_diff, angular_diff);
+            float angular_diff = angle_in_deg - current_angle;
+            // send_speed(linear_diff, angular_diff);
         }
 
     }
