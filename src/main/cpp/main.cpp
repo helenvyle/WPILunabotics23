@@ -343,41 +343,41 @@ class Robot : public frc::TimedRobot {
 
    }
 
-    void localization() {
-        double dist_goal = 0.5;
+    // void localization() {
+    //     double dist_goal = 0.5;
 
-        coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
-        x_curr = coord[0];
-        y_curr = coord[1];
+    //     coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
+    //     x_curr = coord[0];
+    //     y_curr = coord[1];
 
-        float left_encoder_start = leftLead_encoder.GetPosition();
-        // //below is the number of encoder counts for a 45 degree turn
-        float encoder_cycle = 165;
-        while(x_curr == -1 && y_curr == -1) {
-            if(leftLead_encoder.GetPosition() - left_encoder_start <= encoder_cycle) {
-                // m_robotDrive.TankDrive(0.4, -0.4);
-                coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
-                x_curr = coord[0];
-                y_curr = coord[1];
+    //     float left_encoder_start = leftLead_encoder.GetPosition();
+    //     // //below is the number of encoder counts for a 45 degree turn
+    //     float encoder_cycle = 165;
+    //     while(x_curr == -1 && y_curr == -1) {
+    //         if(leftLead_encoder.GetPosition() - left_encoder_start <= encoder_cycle) {
+    //             // m_robotDrive.TankDrive(0.4, -0.4);
+    //             coord = frc::SmartDashboard::GetNumberArray("Coordinate Location m", default_array);
+    //             x_curr = coord[0];
+    //             y_curr = coord[1];
 
-            } else {
-                m_robotDrive.TankDrive(0,0);
-                drive(10);
-                left_encoder_start = leftLead_encoder.GetPosition();
-            }
+    //         } else {
+    //             m_robotDrive.TankDrive(0,0);
+    //             drive(10);
+    //             left_encoder_start = leftLead_encoder.GetPosition();
+    //         }
 
-        }
+    //     }
 
-        m_robotDrive.TankDrive(0,0);
+    //     m_robotDrive.TankDrive(0,0);
 
-    }
+    // }
 
-    void clearEncoders(){
-        leftLead_encoder.SetPosition(0);
-        leftFollower_encoder.SetPosition(0);
-        rightLead_encoder.SetPosition(0);
-        rightFollower_encoder.SetPosition(0);
-    }
+    // void clearEncoders(){
+    //     leftLead_encoder.SetPosition(0);
+    //     leftFollower_encoder.SetPosition(0);
+    //     rightLead_encoder.SetPosition(0);
+    //     rightFollower_encoder.SetPosition(0);
+    // }
 
     //things to work on/fix:
     //figure out how to get robot current heading and how to extract that value
