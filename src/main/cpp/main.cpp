@@ -177,6 +177,12 @@ class Robot : public frc::TimedRobot {
    
     void AutonomousPeriodic() override {
 
+        // reconfigure_up(0.3);
+        if(counter == 0) { 
+            counter = 1;
+            drive_to(-20, 30);
+
+        }
     // AB   
         // for (int cycle = 1; cycle <= 42; cycle++)       //-AB
         // {
@@ -295,9 +301,10 @@ class Robot : public frc::TimedRobot {
             // drive_to(0,-45);
         // drive_to(0, -45);
 
-        
-        if(counter == 0) {
-            counter = 1;
+        // // std::cout << pressure_sensor.GetValue() << std::endl;
+        // update_safety();
+        // if(counter == 0) {
+        //     counter = 1;
         //  // m_belt.Set(-0.5);
         //     reconfigure_up(0.4);
 
@@ -312,14 +319,14 @@ class Robot : public frc::TimedRobot {
 
 
             // linear_slider_control(2, -0.5);
-            excavator.Set(ControlMode::PercentOutput, 0.4);
+            // excavator.Set(ControlMode::PercentOutput, 0.4);
 
             // start_belt(-0.5);
-            // while(pressure_sensor.GetValue() > 3000){
-            //     linear_slider.Set(ControlMode::PercentOutput, 0.2);
+            // while(pressure_sensor.GetValue() > 2200){
+            //     frc::SmartDashboard::PutNumber("Pressure Sensor", pressure_sensor.GetValue());
             // }
-            // m_belt.Set(0);
-            // linear_slider.Set(ControlMode::PercentOutput, 0.0);
+            // // m_belt.Set(0);
+            // // linear_slider.Set(ControlMode::PercentOutput, 0.0);
             // bucket.Set(ControlMode::PercentOutput, 0.3);
 
 
@@ -333,7 +340,8 @@ class Robot : public frc::TimedRobot {
         //     bucket_function(100);
         //     // reconfigure_up(0.4);
         //     // bucket.Set(ControlMode::PercentOutput,-0.1);
-        }
+        // }
+        
 
         // linear_slider.Set(ControlMode::PercentOutput, 0.3);
         // std::cout << pressure_sensor.GetValue() << std::endl;
@@ -623,25 +631,24 @@ class Robot : public frc::TimedRobot {
 
     void drive_to(float x_goal, float y_goal) {
         float tolerance = 0.04;
-        // if(x_goal >= 0 && y_goal >= 0) {
-            float linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
-            while (linear_diff > tolerance) {
+        float linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+        while (linear_diff > tolerance) {
                 
-                linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
-                //this is to test to see if it'd be a bit more accurate? 
-                float target_angle =  atan2((x_goal - x_curr), (y_goal - y_curr));
-                float angle_in_deg = target_angle*(180/(M_PI));
-                //original working:
-                // float target_angle =  atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*M_PI;
-                //this can be implemented or pulled somehow from localization once I figure out how it works
-                // heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
+            linear_diff = abs(sqrt(pow((x_goal - x_curr), 2) + pow((y_goal - y_curr), 2)));
+            //this is to test to see if it'd be a bit more accurate? 
+            float target_angle =  atan2((x_goal - x_curr), (y_goal - y_curr));
+            float angle_in_deg = target_angle*(180/(M_PI));
+            //original working:
+            // float target_angle =  atan2((y_goal - y_curr), (x_goal - x_curr)) + 4*M_PI;
+            //this can be implemented or pulled somehow from localization once I figure out how it works
+            // heading = frc::SmartDashboard::GetNumberArray("Heading Deg (Z,Y,X)", default_array);
 
-                // float current_angle = heading[0];
+            // float current_angle = heading[0];
 
-                float current_angle = 0;
-                float angular_diff = angle_in_deg - current_angle;
-                send_speed(linear_diff, angular_diff);
-            }
+            float current_angle = 0;
+            float angular_diff = angle_in_deg - current_angle;
+            send_speed(linear_diff, angular_diff);
+        }
         // } else if(x_goal == 0) {
         //     send_speed(-y_goal, 0);
         // }
@@ -649,18 +656,21 @@ class Robot : public frc::TimedRobot {
 
     }
 
-    void send_speed(float linear_diff, float angular_diff) {
-
+    void send_speed(float linear_diff, float angular_diff) {        
         turn(angular_diff);
-        sleep(1);
+        sleep(2);
+        m_leftLeadMotor.Set(0);
+        m_rightLeadMotor.Set(0);
+        std::cout << "enc" << leftLead_encoder.GetPosition() << std::endl;
+        std::cout << "lin diff" << linear_diff << std::endl;
         drive(linear_diff);
-
     }
     
     void turn(float angle) {
-        float encoder_goal = abs(((angle/360)*(3.14*wheel_diam) * enc_res))/2;
         float speed = 0.4;
         if(angle > 0) {
+            float encoder_goal = (((angle/360)*(3.14*wheel_diam) * enc_res) + leftLead_encoder.GetPosition())/2;
+
             while((leftLead_encoder.GetPosition()<= encoder_goal + 5|| leftLead_encoder.GetPosition() <= encoder_goal - 5)  && (abs(rightLead_encoder.GetPosition())<= encoder_goal -5 || abs(rightLead_encoder.GetPosition())<= encoder_goal + 5)) {
                 int errorLeft = encoder_goal - leftLead_encoder.GetPosition();
                 int errorRight = encoder_goal - abs(rightLead_encoder.GetPosition());
@@ -675,7 +685,9 @@ class Robot : public frc::TimedRobot {
                 // m_robotDrive.TankDrive(speedL, speedR);
             }
         } else if (angle <= 0) {
-            while((leftLead_encoder.GetPosition()>= encoder_goal - 5 && leftLead_encoder.GetPosition() >= encoder_goal + 5) || (rightLead_encoder.GetPosition()<= abs(encoder_goal-5)  && rightLead_encoder.GetPosition() <= abs(encoder_goal + 5))) {
+            float encoder_goal = (leftLead_encoder.GetPosition() + ((angle/360)*(3.14*wheel_diam) * enc_res))/2;
+
+            while(leftLead_encoder.GetPosition() >= encoder_goal) {    
                 int errorLeft = abs(encoder_goal) - abs(leftLead_encoder.GetPosition());
                 int errorRight = abs(encoder_goal) - abs(rightLead_encoder.GetPosition());
                 int k = 0.2;
@@ -701,11 +713,11 @@ class Robot : public frc::TimedRobot {
 
         if(distance > 0) {
             double encoder_goal = (distance)/(3.14*wheel_diam) * enc_res * 3.95 + leftLead_encoder.GetPosition();
-
-            std::cout << encoder_goal <<std::endl;
-
+            float start = leftLead_encoder.GetPosition();
+            std::cout << "enc goal: " << encoder_goal << std::endl;
             float speed = 0.5;
-            while((leftLead_encoder.GetPosition() <= encoder_goal + 5 || leftLead_encoder.GetPosition() <=encoder_goal - 5) && (rightLead_encoder.GetPosition() <= encoder_goal + 5 || rightLead_encoder.GetPosition() <= encoder_goal- 5)) {
+            float dist_trav = leftLead_encoder.GetPosition() - start;
+            while((dist_trav <= encoder_goal + 5 || dist_trav <=encoder_goal - 5)) {
                 double errorLeft = encoder_goal - leftLead_encoder.GetPosition();
                 double errorRight = encoder_goal - rightLead_encoder.GetPosition();
                 int k = 0.2;
@@ -715,7 +727,7 @@ class Robot : public frc::TimedRobot {
                 float speedR = speed - (errorRight * k);
                 m_leftLeadMotor.Set(speedL);
                 m_rightLeadMotor.Set(speedR);
-                // m_robotDrive.TankDrive(speedL,speedR);
+                dist_trav = leftLead_encoder.GetPosition() - start;
             }
             m_leftLeadMotor.Set(0);
             m_rightLeadMotor.Set(0);
@@ -732,7 +744,6 @@ class Robot : public frc::TimedRobot {
             m_leftLeadMotor.Set(speed);
             m_rightLeadMotor.Set(speed);
             while(leftLead_encoder.GetPosition() >= encoder_goal) {    
-                // std::cout << encoder_goal << "     " << leftLead_encoder.GetPosition() << std::endl;
                 double errorLeft = encoder_goal - leftLead_encoder.GetPosition();
                 double errorRight = encoder_goal - rightLead_encoder.GetPosition();
                 // double errorLeft = abs(encoder_goal) - abs(leftLead_encoder.GetPosition());
